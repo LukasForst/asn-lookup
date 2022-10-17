@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"log"
+	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -16,21 +17,12 @@ type ASNRecord struct {
 	ASN     int
 }
 
-type ASNData struct {
+type ASNDataFP struct {
 	Records []ASNRecord
 }
 
 func parseIp(ip string) uint32 {
-	ipBytes := [4]byte{}
-	ipParts := strings.Split(ip, ".")
-	for i, part := range ipParts {
-		s, err := strconv.ParseInt(part, 10, 32)
-		if err != nil {
-			log.Fatalf("Could not parse int from %s\n", part)
-		}
-		ipBytes[i] = byte(s)
-	}
-	return binary.BigEndian.Uint32(ipBytes[:])
+	return binary.BigEndian.Uint32(net.ParseIP(ip).To4())
 }
 
 // accepts "start end asn"
@@ -44,7 +36,7 @@ func parseRecord(row string) ASNRecord {
 	return ASNRecord{StartIp: startIp, ASN: asn}
 }
 
-func buildSearchAlgorithm(data string) ASNData {
+func buildSearchAlgorithm(data string) ASNDataFP {
 	var parsedRecords []ASNRecord
 	for _, row := range strings.Split(data, "\n") {
 		if row == "" { // empty line
@@ -55,10 +47,10 @@ func buildSearchAlgorithm(data string) ASNData {
 	sort.Slice(parsedRecords, func(i, j int) bool {
 		return parsedRecords[i].StartIp < parsedRecords[j].StartIp
 	})
-	return ASNData{parsedRecords}
+	return ASNDataFP{parsedRecords}
 }
 
-func (data *ASNData) getAsn(ip string) int {
+func (data *ASNDataFP) GetASNForIp(ip string) int {
 	dataLen := len(data.Records)
 	s := parseIp(ip)
 	i, j := 0, dataLen
@@ -80,7 +72,7 @@ func (data *ASNData) getAsn(ip string) int {
 
 // --- data loading and marshalling
 
-func loadFromDataFile(fileName string) ASNData {
+func loadFromDataFile(fileName string) ASNDataFP {
 	asnData, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("Could not read file!")
@@ -88,13 +80,13 @@ func loadFromDataFile(fileName string) ASNData {
 	return buildSearchAlgorithm(string(asnData))
 }
 
-func loadSaved(fileName string) ASNData {
+func loadSaved(fileName string) ASNDataFP {
 	saved, err := os.ReadFile(fileName)
 	dec := gob.NewDecoder(bytes.NewBuffer(saved))
 	if err != nil {
 		log.Fatal(err)
 	}
-	var data ASNData
+	var data ASNDataFP
 	err = dec.Decode(&data)
 	if err != nil {
 		log.Fatal(err)
@@ -102,7 +94,7 @@ func loadSaved(fileName string) ASNData {
 	return data
 }
 
-func (data *ASNData) marshall(fileName string) {
+func (data *ASNDataFP) marshall(fileName string) {
 	f, err := os.Create(fileName)
 	if err != nil {
 		log.Fatal("Couldn't open file")
