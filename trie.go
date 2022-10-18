@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -21,22 +20,15 @@ type N struct {
 	ASN  int
 }
 
-func parseMask(row string) (*net.IPNet, int) {
+func parseMask(row string) (prefixes []*net.IPNet, asn int) {
 	data := strings.Split(row, "\t")
 
-	ip1 := net.ParseIP(data[0]).To4()
-	ip2 := net.ParseIP(data[1]).To4()
-
-	mask := make([]byte, len(ip1))
-	for i := range mask {
-		mask[i] = ip1[i] ^ (^ip2[i])
-	}
 	asn, err := strconv.Atoi(data[2])
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &net.IPNet{IP: ip1, Mask: mask}, asn
+	return ipv4RangeToCidr(data[0], data[1]), asn
 }
 
 func (data *ASNDataTrie) Insert(prefix *net.IPNet, asn int) {
@@ -67,7 +59,6 @@ func (data *ASNDataTrie) GetASNForIp(ipString string) int {
 		} else if bit == 0 && n.Zero != nil {
 			n = n.Zero
 		} else {
-			fmt.Printf("%08b", ip)
 			return n.ASN
 		}
 	}
@@ -101,7 +92,10 @@ func fromFile(fileName string) ASNDataTrie {
 		if row == "" {
 			continue
 		}
-		d.Insert(parseMask(row))
+		prefixes, asn := parseMask(row)
+		for _, p := range prefixes {
+			d.Insert(p, asn)
+		}
 	}
 
 	return d
