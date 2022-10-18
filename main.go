@@ -71,6 +71,9 @@ func generateDataSet(size int) (ips []string) {
 }
 
 func main() {
+	overlaps := findOverlaps("./ip2asn-v4.tsv")
+	fmt.Printf("There were %d of overlapping ranges!\n\n", overlaps)
+
 	ips := generateDataSet(100000)
 	runFp(ips)
 	runTrie(ips)

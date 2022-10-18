@@ -82,12 +82,12 @@ func (n *N) getOrCreateChild(bit byte) *N {
 
 // --- loading
 
-func fromFile(fileName string) ASNDataTrie {
+func fromFile(fileName string) *ASNDataTrie {
 	asnData, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("Could not read file!")
 	}
-	d := ASNDataTrie{Root: new(N)}
+	d := &ASNDataTrie{Root: new(N)}
 	for _, row := range strings.Split(string(asnData), "\n") {
 		if row == "" {
 			continue
